@@ -90,4 +90,3 @@ Or with the virtual environment Python:
 | `test_logic.py` | Unit tests asserting safe sequences, grant/deny/wait/error decisions, and array immutability. |
 | `requirements.txt` | Python library requirements (`streamlit`, `pandas`, `numpy`). |
 | `README.md` | Project documentation, setup guide, and usage instructions. |
-| `MEMORY.md` | Compact project log and architecture memory file. |
