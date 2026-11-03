@@ -403,7 +403,6 @@ if "safety_result" in st.session_state and st.session_state.safety_result is not
                     time.sleep(speed_delay)
 
                 progress_bar.progress(1.0, text="✅ All processes executed safely!")
-                st.balloons()
 
             # Manual step slider (always available for scrubbing)
             st.caption("Or scrub manually using the slider below:")
