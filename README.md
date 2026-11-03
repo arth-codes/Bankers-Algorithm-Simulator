@@ -8,7 +8,7 @@ An interactive web-based simulator for Edsger Dijkstra's Banker's Algorithm, des
 
 - **Interactive Matrix Editing**: Configure $1$ to $10$ processes and $1$ to $5$ resource types. Edit Allocation and Max matrices in real time using interactive data tables.
 - **Dynamic Need Matrix**: Automatically calculates and displays the remaining need ($\text{Need} = \text{Max} - \text{Allocation}$).
-- **Step-by-Step Safety Walkthrough**: Runs the Banker's Safety Algorithm and provides an interactive slider to trace process execution order and resource release in plain English.
+- **Step-by-Step Safety Walkthrough & Animation**: Runs the Banker's Safety Algorithm and provides both an animated execution player (with speed control) and an interactive slider to trace process execution order and resource release in plain English.
 - **Clear Deadlock Explanations**: When an unsafe state occurs, details which processes could not finish and the exact resource shortfall.
 - **"What-If" Resource Requests**: Simulates runtime resource requests (`GRANTED`, `DENIED`, `WAIT`, `ERROR`) without altering system state.
 - **Input Validation**: Guardrails prevent negative numbers, empty cells, requests of all zeros, and allocations exceeding maximum claims.

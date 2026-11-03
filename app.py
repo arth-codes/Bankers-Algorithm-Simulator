@@ -2,10 +2,11 @@
 Banker's Algorithm Simulator - Streamlit Web Application
 
 An interactive Operating Systems learning tool demonstrating Dijkstra's
-Banker's Algorithm for deadlock avoidance, complete with step-by-step
-safety walkthroughs and 'what-if' resource request evaluations.
+Banker's Algorithm for deadlock avoidance, complete with animated
+step-by-step safety walkthroughs and 'what-if' resource request evaluations.
 """
 
+import time
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,11 +15,76 @@ import numpy as np
 from logic import calculate_need, is_safe, request_resource
 
 # Configure page settings
-st.set_page_config(page_title="Banker's Algorithm Simulator", layout="wide")
+st.set_page_config(
+    page_title="Banker's Algorithm Simulator",
+    page_icon="🛡️",
+    layout="wide"
+)
+
+# Custom CSS for enhanced modern UI, badges, and animations
+st.markdown("""
+<style>
+/* Card containers */
+.banker-card {
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 10px;
+    margin-bottom: 14px;
+    background: rgba(128, 128, 128, 0.05);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+}
+
+/* Process status badges */
+.proc-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    margin: 2px 3px;
+}
+
+.proc-executing {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.proc-finished {
+    background: #10b981;
+    color: white;
+}
+
+.proc-waiting {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+    border: 1px dashed rgba(156, 163, 175, 0.5);
+}
+
+/* Sequence badge chain */
+.seq-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 2px 0;
+}
+.seq-arrow {
+    color: #6366f1;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 0 4px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # App Header
-st.title("Banker's Algorithm Simulator")
-st.caption("An interactive demonstration of deadlock avoidance and Dijkstra's Banker's Algorithm.")
+st.title("🛡️ Banker's Algorithm Simulator")
+st.caption("An interactive demonstration of deadlock avoidance and Dijkstra's Banker's Algorithm in Operating Systems.")
 
 # Standard textbook demonstration data from MEMORY.md (5 processes, 3 resource types)
 DEMO_ALLOC = [
@@ -88,10 +154,47 @@ def validate_system_inputs(alloc_df, max_df, avail_list):
     return errors
 
 
+def render_step_card(step_num, total_steps, current_step, all_process_names, finished_set):
+    """
+    Generates an HTML visual card showing active process status and resource transitions.
+    """
+    proc = current_step["process"]
+    need_tuple = f"({', '.join(map(str, current_step['need']))})"
+    work_before_tuple = f"({', '.join(map(str, current_step['work_before']))})"
+    work_after_tuple = f"({', '.join(map(str, current_step['work_after']))})"
+
+    # Generate status badges for all processes
+    pills = []
+    for p in all_process_names:
+        if p == proc:
+            pills.append(f'<span class="proc-pill proc-executing">⚡ {p} Running</span>')
+        elif p in finished_set:
+            pills.append(f'<span class="proc-pill proc-finished">✓ {p} Done</span>')
+        else:
+            pills.append(f'<span class="proc-pill proc-waiting">⏳ {p} Waiting</span>')
+
+    pills_html = " ".join(pills)
+
+    return f"""
+    <div class="banker-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 1.05rem; font-weight: 700;">
+                Step {step_num} of {total_steps}: Process <span style="color: #3b82f6;">{proc}</span>
+            </span>
+            <div>{pills_html}</div>
+        </div>
+        <div style="margin-top: 6px; font-size: 0.95rem;">
+            <b>{proc}</b> can run because its Need <code>{need_tuple}</code> &le; Work <code>{work_before_tuple}</code>.<br/>
+            After <b>{proc}</b> completes and releases resources, Work becomes <code>{work_after_tuple}</code>.
+        </div>
+    </div>
+    """
+
+
 # -----------------------------------------------------------------------------
 # Sidebar: System Dimensions & Example Loader
 # -----------------------------------------------------------------------------
-st.sidebar.header("Configuration")
+st.sidebar.header("⚙️ Configuration")
 st.sidebar.caption("Adjust system dimensions or load textbook demo values.")
 
 # Button to load demo data
@@ -209,11 +312,11 @@ need_df = pd.DataFrame(need_matrix, index=row_names, columns=col_names, dtype=in
 st.dataframe(need_df, use_container_width=True)
 
 # -----------------------------------------------------------------------------
-# Section 3: Safety Check
+# Section 3: Safety Check & Animated Execution
 # -----------------------------------------------------------------------------
 st.divider()
 st.subheader("3. Safety Check")
-st.caption("Determine whether the system is in a safe state and view the execution sequence.")
+st.caption("Determine whether the system is in a safe state, animate the execution order, or walk through manually.")
 
 if st.button("Check Safety", type="primary"):
     # Validate inputs before running the algorithm
@@ -246,9 +349,64 @@ if "safety_result" in st.session_state and st.session_state.safety_result is not
         seq_str = " → ".join(result["sequence"])
         st.success(f"SAFE: {seq_str}")
 
-        # Step slider only shown if state is safe and steps exist
         if steps:
-            st.write("**Step-by-Step Execution Walkthrough:**")
+            st.subheader("Step-by-Step Execution Walkthrough")
+
+            # Animation Controls
+            anim_col1, anim_col2, _ = st.columns([1.2, 1.5, 2])
+            with anim_col1:
+                play_anim = st.button("▶ Play Animation", type="secondary", use_container_width=True)
+            with anim_col2:
+                speed_choice = st.select_slider(
+                    "Animation Speed",
+                    options=["Fast (0.5s)", "Normal (1.0s)", "Slow (1.8s)"],
+                    value="Normal (1.0s)",
+                    label_visibility="collapsed"
+                )
+                speed_delay = {"Fast (0.5s)": 0.5, "Normal (1.0s)": 1.0, "Slow (1.8s)": 1.8}[speed_choice]
+
+            # Dynamic placeholder for animated playback
+            anim_placeholder = st.empty()
+            progress_bar = st.empty()
+
+            if play_anim:
+                finished_so_far = set()
+                seq_so_far = []
+
+                for idx, step_data in enumerate(steps, start=1):
+                    proc_name = step_data["process"]
+                    finished_so_far.add(proc_name)
+                    seq_so_far.append(proc_name)
+
+                    # Update progress bar
+                    progress_bar.progress(idx / len(steps), text=f"Executing Step {idx} of {len(steps)}...")
+
+                    # Build sequence badges
+                    badges_html = " ".join([f'<span class="seq-badge">{p}</span>' for p in seq_so_far])
+
+                    # Render current step card
+                    with anim_placeholder.container():
+                        st.markdown(
+                            f'<div style="margin-bottom: 8px;"><b>Safe Sequence Progress:</b> {badges_html}</div>',
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            render_step_card(idx, len(steps), step_data, row_names, finished_so_far - {proc_name}),
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            f"**Step {idx}:** **{proc_name}** can run because its Need "
+                            f"({', '.join(map(str, step_data['need']))}) is less than or equal to Work "
+                            f"({', '.join(map(str, step_data['work_before']))}). "
+                            f"After **{proc_name}** finishes, Work becomes ({', '.join(map(str, step_data['work_after']))})."
+                        )
+                    time.sleep(speed_delay)
+
+                progress_bar.progress(1.0, text="✅ All processes executed safely!")
+                st.balloons()
+
+            # Manual step slider (always available for scrubbing)
+            st.caption("Or scrub manually using the slider below:")
             if len(steps) > 1:
                 step_num = st.slider(
                     "Step",
@@ -263,6 +421,15 @@ if "safety_result" in st.session_state and st.session_state.safety_result is not
                 step_num = 1
                 current_step = steps[0]
                 st.info("Step 1 of 1")
+
+            # Determine completed processes up to this step
+            completed_up_to_step = set(result["sequence"][:step_num - 1])
+
+            # Render visual card and plain English explanation
+            st.markdown(
+                render_step_card(step_num, len(steps), current_step, row_names, completed_up_to_step),
+                unsafe_allow_html=True
+            )
 
             proc = current_step["process"]
             need_tuple = f"({', '.join(map(str, current_step['need']))})"
